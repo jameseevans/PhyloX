@@ -16,7 +16,7 @@ def load_fasta_sequences(fasta_file):
     """Loads sequences from FASTA, removing gaps and detecting duplicates based on non-gap sequences."""
     sequences = {}
     for record in SeqIO.parse(fasta_file, "fasta"):
-        seq = str(record.seq).replace("-", "")  # Remove gaps for duplicate detection
+        seq = str(record.seq).replace("-", "")
         if seq not in sequences:
             sequences[seq] = []
         sequences[seq].append(record)
@@ -40,10 +40,8 @@ def filter_duplicates(sequences, metadata_df, taxonomy_cols):
     filtered_metadata_indices = []
     for seq, records in sequences.items():
         if len(records) == 1:
-            # Only one record, so keep it
             filtered_metadata_indices.append(records[0].id)
             continue
-        # For duplicate sequences, select the metadata entry with the richest taxonomy information
         record_ids = [rec.id for rec in records]
         metadata_subset = metadata_df[metadata_df["db_id"].isin(record_ids)]
         metadata_subset["taxonomy_score"] = metadata_subset.apply(count_taxonomy_data, axis=1, taxonomy_cols=taxonomy_cols)
@@ -52,10 +50,8 @@ def filter_duplicates(sequences, metadata_df, taxonomy_cols):
     return metadata_df[metadata_df["db_id"].isin(filtered_metadata_indices)]
 
 def write_output_files(filtered_metadata_df, genbank_records, csv_output, genbank_output):
-    # Write the filtered metadata CSV file
     filtered_metadata_df.to_csv(csv_output, index=False)
 
-    # Write the filtered GenBank file based on filtered metadata
     filtered_genbank_records = [genbank_records[seq_id] for seq_id in filtered_metadata_df["db_id"] if seq_id in genbank_records]
     with open(genbank_output, "w") as genbank_out:
         SeqIO.write(filtered_genbank_records, genbank_out, "genbank")
@@ -66,10 +62,8 @@ def main():
     metadata_df, taxonomy_cols = load_metadata(args.csv)
     genbank_records = load_genbank_records(args.genbank)
     
-    # Filter duplicates in metadata based on taxonomy richness
     filtered_metadata = filter_duplicates(sequences, metadata_df, taxonomy_cols)
     
-    # Write the output filtered files
     write_output_files(filtered_metadata, genbank_records, args.csv_output, args.genbank_output)
 
 if __name__ == "__main__":
