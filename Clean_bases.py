@@ -1,6 +1,6 @@
 import argparse
 
-parser = argparse.ArgumentParser(description="Filter and clean FASTA sequences by removing gaps and replacing non-standard bases.")
+parser = argparse.ArgumentParser(description="Clean sequences by removing gaps and replacing non-standard bases.")
 parser.add_argument('-i', '--input', type=str, required=True, help="Input FASTA file")
 parser.add_argument('-o', '--output', type=str, required=True, help="Output FASTA file")
 
