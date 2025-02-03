@@ -4,11 +4,12 @@ import pandas as pd
 from Bio import SeqIO
 
 def parse_fasta(fasta_file):
-    """Parse the FASTA file and return a dictionary of sequences with sequence id as key."""
+    """Parse the FASTA file and return a dictionary of sequences with processid as key."""
     seq_dict = {}
     for record in SeqIO.parse(fasta_file, "fasta"):
+        process_id = record.id.split("|")[0]  # Extract processid
         seq = str(record.seq).replace("-", "")
-        seq_dict[record.id] = seq
+        seq_dict[process_id] = seq
     return seq_dict
 
 def parse_metadata(metadata_file):
@@ -31,7 +32,7 @@ def remove_duplicates(fasta_file, metadata_file, output_fasta_file, output_metad
     required_columns = ['subfamily_name', 'genus_name', 'species_name', 'subspecies_name']
     
     for _, row in metadata_df.iterrows():
-        seq_id = row[seq_id_column]
+        seq_id = str(row[seq_id_column])  # Ensure seq_id is a string
         sequence = seq_dict.get(seq_id)
         
         if sequence:
@@ -42,14 +43,15 @@ def remove_duplicates(fasta_file, metadata_file, output_fasta_file, output_metad
                 if get_metadata_priority(row, required_columns) > get_metadata_priority(existing_row, required_columns):
                     seen_sequences[sequence] = row
 
-    filtered_seq_ids = [row[seq_id_column] for row in seen_sequences.values()]
+    filtered_seq_ids = [str(row[seq_id_column]) for row in seen_sequences.values()]
 
     with open(output_fasta_file, 'w') as out_fasta:
         for record in SeqIO.parse(fasta_file, "fasta"):
-            if record.id in filtered_seq_ids:
+            process_id = record.id.split("|")[0]  # Extract processid
+            if process_id in filtered_seq_ids:
                 SeqIO.write(record, out_fasta, "fasta")
     
-    filtered_metadata_df = metadata_df[metadata_df[seq_id_column].isin(filtered_seq_ids)]
+    filtered_metadata_df = metadata_df[metadata_df[seq_id_column].astype(str).isin(filtered_seq_ids)]
     
     filtered_metadata_df.to_csv(output_metadata_file, index=False)
 
