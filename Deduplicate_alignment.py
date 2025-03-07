@@ -1,94 +1,43 @@
 import argparse
-from collections import defaultdict
+from Bio import SeqIO
 
-special_prefixes = ["BIOD", "CCCP", "GBDL", "HNSP", "MIZA", "QINL", "SPSO", "SRAA", "BGLP"]
+special_prefixes = {'BIOD', 'CCCP', 'GBDL', 'HNSP', 'MIZA', 'QINL', 'SPSO', 'SRAA', 'BGLP'}
 
-def parse_fasta(fasta_file):
-    seq_lengths = {}
-    seq_ids = {}
-    with open(fasta_file, 'r') as f:
-        seq_id = None
-        seq = ''
-        for line in f:
-            line = line.strip()
-            if line.startswith('>'):
-                if seq_id:
-                    seq_lengths[seq_id] = len(seq)
-                    seq_ids[seq_id] = seq
-                seq_id = line[1:]
-                seq = ''
-            else:
-                seq += line
-        if seq_id:
-            seq_lengths[seq_id] = len(seq)
-            seq_ids[seq_id] = seq
-    return seq_lengths, seq_ids
-
-def parse_mptp_output(mptp_file):
-    species_groups = defaultdict(list)
-    with open(mptp_file, 'r') as f:
-        current_species = None
-        for line in f:
-            line = line.strip()
-            if line.startswith('Species'):
-                current_species = int(line.split()[1].strip(':'))
-            elif line and not line.startswith('Species'):
-                species_groups[current_species].extend(line.split())
-    return species_groups
-
-def select_sequences(species_groups, seq_lengths, seq_ids):
-    selected_sequences = []
+def get_longest_sequence(sequences):
+    """Return the longest sequence, prioritizing those with special prefixes if present."""
+    special_sequences = [seq for seq in sequences if any(seq.id.startswith(prefix) for prefix in special_prefixes)]
     
-    for species, sequences in species_groups.items():
-        longest_sequence = None
-        longest_length = 0
-        special_sequence = None
-        longest_special_sequence = None
-        longest_special_length = 0
-        
-        for seq in sequences:
-            if seq in seq_lengths:
-                seq_len = seq_lengths[seq]
-                
-                if any(seq.startswith(prefix) for prefix in special_prefixes):
-                    if seq_len > longest_special_length:
-                        longest_special_sequence = seq
-                        longest_special_length = seq_len
-                else:
-                    if seq_len > longest_length:
-                        longest_sequence = seq
-                        longest_length = seq_len
-        
-        if longest_special_sequence:
-            selected_sequences.append(longest_special_sequence)
+    if special_sequences:
+        return max(special_sequences, key=lambda seq: len(seq.seq))
+    else:
+        return max(sequences, key=lambda seq: len(seq.seq))
+
+def remove_duplicates(input_fasta, output_fasta):
+    """Reads a FASTA file, removes duplicates, and writes the longest appropriate sequences to a new file."""
+    sequences = SeqIO.parse(input_fasta, "fasta")
+    
+    unique_sequences = {}
+    
+    for seq_record in sequences:
+        seq_name = seq_record.id.split()[0] 
+
+        if seq_name not in unique_sequences:
+            unique_sequences[seq_name] = [seq_record]
         else:
-            selected_sequences.append(longest_sequence)
-    
-    return selected_sequences
+            unique_sequences[seq_name].append(seq_record)
 
-def write_selected_sequences(fasta_file, selected_sequences, seq_ids, output_file):
-    with open(output_file, 'w') as f:
-        for seq_id in selected_sequences:
-            if seq_id in seq_ids:
-                f.write(f">{seq_id}\n{seq_ids[seq_id]}\n")
+    final_sequences = [get_longest_sequence(seq_records) for seq_records in unique_sequences.values()]
+    
+    with open(output_fasta, "w") as out_file:
+        SeqIO.write(final_sequences, out_file, "fasta")
 
-def main():
-    parser = argparse.ArgumentParser(description="Select longest sequence per species from a MPTP output and FASTA alignment.")
-    
-    parser.add_argument('-f', '--fasta', required=True, help="Input FASTA file containing the sequence alignment.")
-    parser.add_argument('-m', '--mptp', required=True, help="Input MPTP output file with species groupings.")
-    parser.add_argument('-o', '--output', required=True, help="Output FASTA file to save the selected sequences.")
-    
-    args = parser.parse_args()
-    
-    seq_lengths, seq_ids = parse_fasta(args.fasta)
-    species_groups = parse_mptp_output(args.mptp)
-    
-    selected_sequences = select_sequences(species_groups, seq_lengths, seq_ids)
-    
-    write_selected_sequences(args.fasta, selected_sequences, seq_ids, args.output)
-    
-    print(f"Selected sequences saved to {args.output}")
+    print(f"Filtered sequences have been written to {output_fasta}")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Remove duplicate sequences from a FASTA file while retaining the longest.")
+    parser.add_argument("-i", "--input", required=True, help="Input FASTA file")
+    parser.add_argument("-o", "--output", required=True, help="Output FASTA file")
+
+    args = parser.parse_args()
+    
+    remove_duplicates(args.input, args.output)
