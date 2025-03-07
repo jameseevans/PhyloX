@@ -13,21 +13,21 @@ def get_longest_sequence(sequences):
         return max(sequences, key=lambda seq: len(seq.seq))
 
 def remove_duplicates(input_fasta, output_fasta):
-    """Reads a FASTA file, removes duplicates, and writes the longest appropriate sequences to a new file."""
+    """Reads a FASTA file, removes duplicates based on sequence content, and retains the longest."""
     sequences = SeqIO.parse(input_fasta, "fasta")
-    
-    unique_sequences = {}
-    
-    for seq_record in sequences:
-        seq_name = seq_record.id.split()[0] 
 
-        if seq_name not in unique_sequences:
-            unique_sequences[seq_name] = [seq_record]
+    unique_sequences = {}
+
+    for seq_record in sequences:
+        seq_str = str(seq_record.seq)
+
+        if seq_str not in unique_sequences:
+            unique_sequences[seq_str] = [seq_record]
         else:
-            unique_sequences[seq_name].append(seq_record)
+            unique_sequences[seq_str].append(seq_record)
 
     final_sequences = [get_longest_sequence(seq_records) for seq_records in unique_sequences.values()]
-    
+
     with open(output_fasta, "w") as out_file:
         SeqIO.write(final_sequences, out_file, "fasta")
 
