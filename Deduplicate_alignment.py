@@ -1,4 +1,4 @@
-### Script to remove identical sequences from a fasta alignment file, retaining mitochondrial genomes from the Vogler lab, or the longest sequence ###
+### Script to remove duplicate sequences from a fasta alignment file, retaining mitochondrial genomes from the Vogler lab, or the longest sequence ###
 ### james.evans@nhm.ac.uk ###
 
 import argparse
