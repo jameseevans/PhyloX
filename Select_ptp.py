@@ -1,7 +1,7 @@
 import argparse
 from collections import defaultdict
 
-special_prefixes = ["BIOD", "CCCP", "GBDL", "HNSP", "MIZA", "QINL", "SPSO", "SRAA", "BGLP"]
+special_prefixes = ["BIOD", "CCCP", "GBDL", "HNSP", "MIZA", "QINL", "SPSO", "SRAA", "BGLP", "ZIPC"]
 
 def parse_fasta(fasta_file):
     seq_lengths = {}
