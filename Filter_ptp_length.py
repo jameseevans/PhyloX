@@ -1,15 +1,12 @@
 import re
 from Bio import SeqIO
-import pandas as pd
 import argparse
 
 # Argument parser
-parser = argparse.ArgumentParser(description="Filter FASTA and metadata based on MPTP output.")
+parser = argparse.ArgumentParser(description="Filter FASTA based on MPTP output.")
 parser.add_argument("--mptp_file", required=True, help="Path to the MPTP output file.")
 parser.add_argument("--fasta_file", required=True, help="Path to the input FASTA file.")
-parser.add_argument("--metadata_file", required=True, help="Path to the input metadata CSV file.")
 parser.add_argument("--output_fasta", required=True, help="Path to the output filtered FASTA file.")
-parser.add_argument("--output_metadata", required=True, help="Path to the output filtered metadata CSV file.")
 args = parser.parse_args()
 
 # Read MPTP output and extract species information
@@ -52,14 +49,4 @@ for species, seq_ids in species_dict.items():
 with open(args.output_fasta, "w") as output:
     SeqIO.write(selected_sequences.values(), output, "fasta")
 
-# Read metadata
-metadata = pd.read_csv(args.metadata_file)
-
-# Filter metadata using extracted process IDs
-filtered_metadata = metadata[metadata['processid'].isin(set(seq_id_mapping[id] for id in selected_sequences.keys()))]
-
-# Write filtered metadata to file
-filtered_metadata.to_csv(args.output_metadata, index=False)
-
 print(f"Filtered FASTA written to {args.output_fasta}")
-print(f"Filtered metadata written to {args.output_metadata}")
