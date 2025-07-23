@@ -1,10 +1,10 @@
-### Script to remove duplicate sequences from a fasta alignment file, retaining mitochondrial genomes from the Vogler lab, or the longest sequence ###
+### Script to remove duplicate sequences from a fasta alignment file, retaining mitochondrial genomes from the Vogler lab where available.
 ### james.evans@nhm.ac.uk ###
 
 import argparse
 from Bio import SeqIO
 
-mito_prefixes = {'BIOD', 'CCCP', 'GBDL', 'HNSP', 'MIZA', 'QINL', 'SPSO', 'SRAA', 'BGLP'}
+mito_prefixes = {'BIOD', 'CCCP', 'GBDL', 'HNSP', 'MIZA', 'QINL', 'SPSO', 'SRAA', 'BGLP', 'ZIPC', 'CDBP'}
 
 def get_longest_sequence(sequences):
     mito_sequences = [seq for seq in sequences if any(seq.id.startswith(prefix) for prefix in mito_prefixes)]
