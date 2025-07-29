@@ -14,6 +14,6 @@ with open(args.input, 'r') as infile, open(args.output, 'w') as outfile:
             outfile.write(line)
         else:
             cleaned_sequence = ''.join(
-                char if char.upper() in valid_bases else 'N'
+                char if char.upper() in valid_bases else 'N' for char in line.strip()
             )
             outfile.write(cleaned_sequence + '\n')
