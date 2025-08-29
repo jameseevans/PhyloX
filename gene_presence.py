@@ -84,10 +84,13 @@ def extract_gene_name(feature):
                 if clean_name in gene_lookup:
                     return gene_lookup[clean_name]
                 
-                # Try partial matches for complex annotations
+                # Try partial matches for complex annotations (more restrictive)
                 for variant, standard in gene_lookup.items():
-                    if variant in clean_name or clean_name in variant:
-                        return standard
+                    # Only match if the variant is a significant part of the clean_name
+                    if len(variant) >= 3:  # Avoid matching very short strings
+                        if (variant in clean_name and len(variant) > len(clean_name) * 0.3) or \
+                           (clean_name in variant and len(clean_name) > len(variant) * 0.3):
+                            return standard
     
     return None
 
@@ -102,14 +105,21 @@ def analyze_genbank_sequence(record):
     # Initialize gene presence dictionary
     genes_present = defaultdict(bool)
     
+    # Debug: track what genes we find
+    found_genes = []
+    
     # Check all features in the sequence
     for feature in record.features:
         if feature.type in ['gene', 'CDS', 'rRNA', 'tRNA']:
             gene_name = extract_gene_name(feature)
             if gene_name and gene_name in gene_order:
                 genes_present[gene_name] = True
+                found_genes.append(gene_name)
     
-    # Create presence/absence pattern string
+    # Debug output (remove in production)
+    print(f"Sequence {record.id}: Found genes: {sorted(set(found_genes))}")
+    
+    # Create presence/absence pattern string (15 characters total)
     pattern = ""
     for gene in gene_order:
         if genes_present[gene]:
@@ -117,9 +127,15 @@ def analyze_genbank_sequence(record):
         else:
             pattern += "-"
     
-    # Add hyphens at positions 4, 7, and 10 for readability
-    formatted_pattern = (pattern[:4] + "-" + pattern[4:6] + "-" + 
-                       pattern[6:8] + "-" + "-" + pattern[8:])
+    # Debug: show the raw pattern and LOCUS/ID info
+    print(f"LOCUS: {record.name}, ID: {record.id}")
+    print(f"Raw pattern: {pattern} (length: {len(pattern)})")
+    print(f"Found genes: {sorted(set(found_genes))}")
+    print("---")
+    
+    # Apply your requested format: XXXX-XX-XX--XX-
+    # For 15 genes, let's use a clean format: XXXX-XX-XX-XX-XX
+    formatted_pattern = f"{pattern[0:4]}-{pattern[4:6]}-{pattern[6:8]}-{pattern[8:10]}-{pattern[10:12]}-{pattern[12:15]}"
     
     return formatted_pattern
 
@@ -134,8 +150,17 @@ def process_genbank_file(genbank_file):
         with open(genbank_file, 'r') as handle:
             for record in SeqIO.parse(handle, "genbank"):
                 pattern = analyze_genbank_sequence(record)
-                gene_patterns[record.id] = pattern
+                
+                # Use LOCUS name (record.name) instead of record.id
+                locus_name = record.name
+                gene_patterns[locus_name] = pattern
+                
+                # Also store using record.id as backup for matching
+                if record.id != locus_name:
+                    gene_patterns[record.id] = pattern
+                
                 processed_count += 1
+                print(f"Processed: LOCUS={locus_name}, ID={record.id}")
                 
         print(f"Processed {processed_count} sequences from GenBank file")
         return gene_patterns
@@ -177,11 +202,14 @@ def update_csv_with_gene_presence(df, id_column, gene_patterns):
     matches_found = 0
     no_matches = []
     
+    # Debug: show available keys in gene_patterns
+    print(f"Available GenBank identifiers: {list(gene_patterns.keys())[:10]}...")
+    
     # Update gene presence for matching sequences
     for idx, row in df.iterrows():
         seq_id = str(row[id_column])
         
-        # Try exact match first
+        # Try exact match first (including LOCUS names)
         if seq_id in gene_patterns:
             df.at[idx, 'gene_presence'] = gene_patterns[seq_id]
             matches_found += 1
@@ -197,6 +225,7 @@ def update_csv_with_gene_presence(df, id_column, gene_patterns):
                     df.at[idx, 'gene_presence'] = gene_patterns[gb_id]
                     matches_found += 1
                     found_match = True
+                    print(f"Matched: CSV '{seq_id}' -> GenBank '{gb_id}'")
                     break
             
             if not found_match:
@@ -224,8 +253,15 @@ def print_gene_presence_summary(df):
     pattern_counts = df['gene_presence'].value_counts()
     
     # Calculate completeness statistics
-    complete_genomes = len(df[df['gene_presence'] == 'XXXX-XX-XX--XX-'])
+    # Count genomes with all 15 genes present (count X's in pattern)
+    complete_genomes = 0
     total_sequences = len(df[df['gene_presence'].notna()])
+    
+    for pattern in df['gene_presence'].dropna():
+        # Count X's in the pattern (should be 15 for complete genomes)
+        x_count = pattern.count('X')
+        if x_count == 15:
+            complete_genomes += 1
     
     print(f"\nGene Presence Summary:")
     print(f"Total sequences in CSV: {len(df)}")
