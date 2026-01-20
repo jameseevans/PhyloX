@@ -47,7 +47,7 @@ def filter_fasta(input_fasta, output_fasta, min_len, stats_csv):
 
 if __name__ == "__main__":
     if len(sys.argv) != 5:
-        print("Usage: python filter_fasta.py <input.fa> <output.fa> <min_length> <stats.csv>")
+        print("Usage: python Filter_sequence_length.py <input.fa> <output.fa> <min_length> <stats.csv>")
         sys.exit(1)
 
     input_fasta = sys.argv[1]
