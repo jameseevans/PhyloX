@@ -1,22 +1,58 @@
-import argparse
-from Bio import SeqIO
+#!/usr/bin/env python3
+import sys
+import csv
 
-def filter_sequences(input_fasta, output_fasta, min_length=500):
-    with open(input_fasta, "r") as infile:
-        with open(output_fasta, "w") as outfile:
-            for record in SeqIO.parse(infile, "fasta"):
-                non_gap_bases = str(record.seq).replace('-', '')
-                if len(non_gap_bases) >= min_length:
-                    SeqIO.write(record, outfile, "fasta")
+def filter_fasta(input_fasta, output_fasta, min_len, stats_csv):
+    def read_fasta(fp):
+        header = None
+        seq_chunks = []
+        for line in fp:
+            line = line.rstrip()
+            if line.startswith(">"):
+                if header:
+                    yield header, "".join(seq_chunks)
+                header = line[1:]  # remove ">"
+                seq_chunks = []
+            else:
+                seq_chunks.append(line)
+        if header:
+            yield header, "".join(seq_chunks)
 
-def main():
-    parser = argparse.ArgumentParser(description="Filter sequences based on a minimum length.")
-    parser.add_argument('-i', '--input', required=True, help="Input FASTA file")
-    parser.add_argument('-o', '--output', required=True, help="Output FASTA file")
-    parser.add_argument('-l', '--min-length', type=int, default=500, help="Minimum length (default: 500)")
+    removed_stats = []
 
-    args = parser.parse_args()
-    filter_sequences(args.input, args.output, args.min_length)
+    with open(input_fasta) as inp, open(output_fasta, "w") as out:
+        for header, seq in read_fasta(inp):
+            original_len = len(seq)
+            clean_seq = seq.replace("-", "").replace("N", "").replace("n", "")
+            clean_len = len(clean_seq)
+
+            if clean_len >= min_len:
+                out.write(f">{header}\n{seq}\n")
+            else:
+                removed_stats.append({
+                    "header": header,
+                    "original_length": original_len,
+                    "ungapped_nonN_length": clean_len,
+                    "removed_reason": f"length<{min_len}"
+                })
+
+    # Write CSV report
+    with open(stats_csv, "w", newline="") as csvfile:
+        fieldnames = ["header", "original_length", "ungapped_nonN_length", "removed_reason"]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in removed_stats:
+            writer.writerow(row)
+
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) != 5:
+        print("Usage: python filter_fasta.py <input.fa> <output.fa> <min_length> <stats.csv>")
+        sys.exit(1)
+
+    input_fasta = sys.argv[1]
+    output_fasta = sys.argv[2]
+    min_len = int(sys.argv[3])
+    stats_csv = sys.argv[4]
+
+    filter_fasta(input_fasta, output_fasta, min_len, stats_csv)
