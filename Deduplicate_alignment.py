@@ -4,7 +4,7 @@
 import argparse
 from Bio import SeqIO
 
-mito_prefixes = {'BIOD', 'CCCP', 'GBDL', 'HNSP', 'MIZA', 'QINL', 'SPSO', 'SRAA', 'BGLP', 'ZIPC', 'CDBP'}
+mito_prefixes = {'BIOD', 'CCCP', 'GBDL', 'HNSP', 'MIZA', 'QINL', 'SPSO', 'SRAA', 'BGLP', 'ZIPC', 'CDBP', 'SRAB'}
 
 def get_longest_sequence(sequences):
     mito_sequences = [seq for seq in sequences if any(seq.id.startswith(prefix) for prefix in mito_prefixes)]
