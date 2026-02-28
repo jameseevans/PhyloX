@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 #Processes a TSV file from BOLDsystems v5, to extract specified loci and remove invalid bases and gaps in a fasta file. Outputs a filtered tsv file.
-
 import argparse
 import csv
 import sys
@@ -10,7 +9,6 @@ VALID_BASES = {
     'R', 'Y', 'S', 'W', 'K', 'M',
     'B', 'D', 'H', 'V'
 }
-
 GAP_CHARS = {'-', '.'}
 
 def clean_sequence(seq):
@@ -36,10 +34,16 @@ def tsv_to_fasta(
     with open(input_tsv, newline="", encoding="utf-8") as infile:
         reader = csv.DictReader(infile, delimiter="\t")
 
+        # Strip None keys caused by trailing tabs in header
+        clean_fieldnames = [f for f in reader.fieldnames if f is not None]
+
         required_cols = {"processid", "nuc", "marker_code"}
-        missing = required_cols - set(reader.fieldnames)
+        missing = required_cols - set(clean_fieldnames)
         if missing:
             sys.exit(f"ERROR: Missing required columns: {', '.join(missing)}")
+
+        if None in reader.fieldnames:
+            print("WARNING: TSV header contains trailing tabs (empty columns); these will be ignored.", file=sys.stderr)
 
         rows = []
         fasta_count = 0
@@ -68,11 +72,9 @@ def tsv_to_fasta(
             for row in rows:
                 seq_id = row["processid"].strip()
                 seq = row["nuc"]
-
                 fasta.write(f">{seq_id}\n")
                 for i in range(0, len(seq), 60):
                     fasta.write(seq[i:i+60] + "\n")
-
                 fasta_count += 1
 
         # Write filtered TSV if requested
@@ -80,8 +82,9 @@ def tsv_to_fasta(
             with open(output_tsv, "w", newline="", encoding="utf-8") as outtsv:
                 writer = csv.DictWriter(
                     outtsv,
-                    fieldnames=reader.fieldnames,
-                    delimiter="\t"
+                    fieldnames=clean_fieldnames,
+                    delimiter="\t",
+                    extrasaction='ignore'
                 )
                 writer.writeheader()
                 writer.writerows(rows)
@@ -94,7 +97,6 @@ def main():
     parser = argparse.ArgumentParser(
         description="Convert BOLD TSV to FASTA, filter by locus, clean sequences"
     )
-
     parser.add_argument(
         "-i", "--input",
         required=True,
@@ -113,7 +115,6 @@ def main():
         "-l", "--locus",
         help="Filter by marker_code (e.g. COI-5P)"
     )
-
     args = parser.parse_args()
 
     tsv_to_fasta(
